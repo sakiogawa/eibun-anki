@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英文暗記アプリ（eibun-anki / プロトタイプ）</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800;900&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ===================== B案 / MyRoutine 風テーマ ===================== */
+  :root {
+    --bg: #f6f5f1;
+    --card: #ffffff;
+    --ink: #3d3a34;
+    --mute: #9a968c;
+    --faint: #c5c1b6;
+    --line: #eceae3;
+    --grn: #45b97a; --grn-d: #2e9d63; --grn-bg: #e7f6ec;
+    --amber: #f2b43a; --amber-bg: #fcf1d8;
+    --coral: #ef8b6e; --coral-bg: #fbeae2;
+    --shadow: 0 4px 16px rgba(70,60,45,.06);
+    --shadow-sheet: 0 -6px 24px rgba(70,60,45,.10);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Noto Sans JP", system-ui, sans-serif;
+    background: var(--bg); color: var(--ink);
+    min-height: 100vh; -webkit-font-smoothing: antialiased;
+  }
+  .num-font { font-family: "Nunito", sans-serif; font-variant-numeric: tabular-nums; }
+
+  /* レイアウト: スマホ縦の中央寄せ */
+  #app { max-width: 440px; margin: 0 auto; padding: 22px 18px 110px; min-height: 100vh; }
+  .scr-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .scr-header .h-title { font-size: 20px; font-weight: 800; flex: 1; }
+  .scr-header .h-sub { font-size: 13px; font-weight: 700; color: var(--mute); }
+
+  /* ---------- Cards ---------- */
+  .card { background: var(--card); border-radius: 22px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 14px; }
+  .sect-label { font-size: 13px; font-weight: 800; color: var(--mute); margin: 18px 2px 10px; }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border: none; border-radius: 999px; padding: 14px 22px; cursor: pointer;
+    font-family: inherit; font-weight: 800; font-size: 15px; user-select: none;
+    transition: filter .1s, background .15s, box-shadow .15s;
+  }
+  .btn svg { width: 20px; height: 20px; }
+  .btn-grn { background: var(--grn); color: #fff; box-shadow: 0 4px 12px rgba(69,185,122,.28); }
+  .btn-grn:active { filter: brightness(.93); }
+  .btn-soft { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+  .btn-soft:active { filter: brightness(.97); }
+  .btn-soft-grn { background: var(--grn-bg); color: var(--grn-d); }
+  .btn-soft-grn:active { filter: brightness(.97); }
+  .btn-block { width: 100%; }
+  .btn:disabled { background: var(--line); color: var(--faint); box-shadow: none; cursor: not-allowed; }
+  .actions { display: flex; gap: 10px; margin-top: 8px; }
+
+  /* icon buttons */
+  .icon-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: transparent;
+    color: var(--mute); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .icon-btn:active { background: var(--line); }
+  .icon-btn svg { width: 24px; height: 24px; }
+  .txt-action { background: none; border: none; color: var(--grn-d); font-family: inherit; font-weight: 800; font-size: 15px; cursor: pointer; }
+
+  /* ---------- Pills (filters) ---------- */
+  .pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill { border: none; border-radius: 999px; padding: 8px 16px; font-family: inherit;
+    font-weight: 800; font-size: 13px; background: var(--card); color: var(--mute);
+    cursor: pointer; box-shadow: var(--shadow); }
+  .pill.on { background: var(--grn); color: #fff; box-shadow: 0 3px 10px rgba(69,185,122,.28); }
+
+  /* ---------- Chips (category / status) ---------- */
+  .chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px;
+    padding: 4px 11px 4px 9px; font-size: 12px; font-weight: 800; background: var(--bg); color: var(--ink); }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .chip.st-mastered { background: var(--grn-bg); color: var(--grn-d); }
+  .chip.st-mastered .dot { background: var(--grn); }
+  .chip.st-box { background: var(--coral-bg); color: #c4694a; }
+  .chip.st-box .dot { background: var(--coral); }
+  .chip.st-learning { background: var(--amber-bg); color: #b6831b; }
+  .chip.st-learning .dot { background: var(--amber); }
+  .chip.st-new { background: var(--bg); color: var(--mute); }
+  .chip.st-new .dot { background: var(--faint); }
+
+  /* ---------- Inputs ---------- */
+  .field { margin-bottom: 16px; }
+  .field-label { display: block; font-size: 13px; font-weight: 800; color: var(--mute); margin-bottom: 8px; }
+  .input { width: 100%; border: 1.5px solid var(--line); border-radius: 16px; padding: 14px 16px;
+    font-family: inherit; font-size: 16px; font-weight: 700; background: var(--card); color: var(--ink); resize: vertical; }
+  .input::placeholder { color: var(--faint); font-weight: 700; }
+  .input:focus { outline: none; border-color: var(--grn); }
+  textarea.input { min-height: 60px; line-height: 1.5; }
+  .num-input { width: 72px; text-align: center; padding: 12px 8px; -moz-appearance: textfield; appearance: textfield; }
+  .num-input::-webkit-outer-spin-button, .num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+  /* search box */
+  .search { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 999px;
+    padding: 11px 16px; box-shadow: var(--shadow); margin-bottom: 14px; }
+  .search svg { width: 18px; height: 18px; color: var(--mute); flex-shrink: 0; }
+  .search input { border: none; outline: none; background: none; font-family: inherit; font-size: 15px;
+    font-weight: 700; color: var(--ink); width: 100%; }
+  .search input::placeholder { color: var(--faint); }
+
+  /* ---------- Home: greeting / streak ---------- */
+  .greet { flex: 1; }
+  .greet .g-hi { font-size: 21px; font-weight: 900; }
+  .greet .g-date { font-size: 12px; font-weight: 700; color: var(--mute); margin-top: 2px; }
+  .streak { display: inline-flex; align-items: center; gap: 5px; background: var(--grn-bg); color: var(--grn-d);
+    border-radius: 999px; padding: 7px 13px 7px 10px; font-weight: 900; font-size: 14px; }
+  .streak svg { width: 17px; height: 17px; }
+
+  /* greenlight card */
+  .glcard { display: flex; align-items: center; gap: 16px; }
+  .gl-ring { position: relative; width: 88px; height: 88px; flex-shrink: 0; }
+  .gl-ring .gl-center { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; }
+  .gl-ring .gl-now { font-family: "Nunito"; font-weight: 800; font-size: 24px; color: var(--grn-d); line-height: 1; }
+  .gl-ring .gl-goal { font-family: "Nunito"; font-weight: 800; font-size: 12px; color: var(--mute); }
+  .gl-ring.lit .gl-disc { filter: drop-shadow(0 0 7px rgba(69,185,122,.7)); }
+  .gl-body { flex: 1; min-width: 0; }
+  .gl-title { font-size: 16px; font-weight: 900; }
+  .gl-msg { font-size: 13px; font-weight: 700; color: var(--grn-d); margin-top: 3px; }
+  .gl-sub { font-size: 12px; font-weight: 700; color: var(--mute); margin-top: 6px; }
+  .gl-tag { display: inline-flex; align-items: center; gap: 4px; margin-top: 9px; background: var(--grn-bg);
+    color: var(--grn-d); border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 800; }
+
+  /* mode rows */
+  .mode-row { display: flex; align-items: center; gap: 13px; padding: 13px; border-radius: 16px;
+    cursor: pointer; transition: background .12s; }
+  .mode-row:active { background: var(--bg); }
+  .mode-row + .mode-row { border-top: 1px solid var(--line); border-radius: 0; }
+  .mode-sq { width: 44px; height: 44px; border-radius: 13px; display: flex; align-items: center;
+    justify-content: center; font-size: 21px; flex-shrink: 0; background: var(--grn-bg); }
+  .mode-sq.amber { background: var(--amber-bg); }
+  .mode-sq.coral { background: var(--coral-bg); }
+  .mode-sq.violet { background: #efe9fb; }
+  .mode-main { flex: 1; min-width: 0; }
+  .mode-title { font-size: 15px; font-weight: 800; }
+  .mode-sub { font-size: 12px; font-weight: 700; color: var(--mute); margin-top: 2px; }
+  .mode-row .chev { color: var(--faint); }
+  .mode-row .chev svg { width: 20px; height: 20px; }
+  .mode-row[aria-disabled="true"] { opacity: .45; pointer-events: none; }
+
+  /* weekly dots */
+  .week { display: flex; justify-content: space-between; }
+  .wd { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .wd .wd-lbl { font-size: 11px; font-weight: 800; color: var(--mute); }
+  .wd .wd-dot { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; background: var(--bg); color: var(--faint); }
+  .wd .wd-dot svg { width: 17px; height: 17px; }
+  .wd.done .wd-dot { background: var(--grn); color: #fff; }
+  .wd.today .wd-dot { background: var(--card); border: 2px solid var(--grn); color: var(--grn-d); }
+  .wd.today.done .wd-dot { background: var(--grn); color: #fff; }
+
+  /* ---------- Practice ---------- */
+  .pbar { height: 7px; background: var(--line); border-radius: 999px; overflow: hidden; flex: 1; }
+  .pbar > span { display: block; height: 100%; background: var(--grn); border-radius: 999px; transition: width .35s ease; }
+  .p-top { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+  .p-count { font-family: "Nunito"; font-weight: 800; font-size: 14px; color: var(--mute); }
+  .q-cat { margin-bottom: 14px; }
+  .q-prompt-label { font-size: 13px; font-weight: 700; color: var(--mute); margin-bottom: 8px; }
+  .ja-prompt { font-size: 24px; font-weight: 800; line-height: 1.55; }
+  .mic-row { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+  .mic-btn { width: 52px; height: 52px; border-radius: 50%; border: none; background: var(--grn-bg);
+    color: var(--grn-d); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .mic-btn:active { filter: brightness(.95); }
+  .mic-btn svg { width: 24px; height: 24px; }
+  .mic-status { font-size: 13px; font-weight: 700; color: var(--mute); }
+  .mic-status .recording { color: var(--coral); }
+
+  /* ---------- Bottom sheet (feedback) ---------- */
+  .backdrop { position: fixed; inset: 0; background: rgba(40,36,28,.18); opacity: 0; pointer-events: none;
+    transition: opacity .2s; z-index: 40; }
+  .backdrop.open { opacity: 1; pointer-events: auto; }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; max-width: 440px; margin: 0 auto;
+    background: var(--card); border-radius: 24px 24px 0 0; box-shadow: var(--shadow-sheet);
+    padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); transform: translateY(110%);
+    transition: transform .28s cubic-bezier(.2,.8,.2,1); }
+  .sheet.open { transform: translateY(0); }
+  .sheet .s-head { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 900; }
+  .sheet .s-emoji { font-size: 24px; }
+  .sheet.correct .s-head { color: var(--grn-d); }
+  .sheet .s-msg { font-size: 13px; font-weight: 700; color: var(--mute); margin: 4px 0 14px 0; }
+  .ans-block { margin-bottom: 12px; }
+  .ans-cap { font-size: 12px; font-weight: 800; color: var(--mute); margin-bottom: 4px; }
+  .ans-en { font-family: "Nunito"; font-size: 18px; font-weight: 800; line-height: 1.5; }
+  .hl { background: linear-gradient(transparent 52%, rgba(242,180,58,.55) 52% 92%, transparent 92%); border-radius: 2px; padding: 0 1px; }
+
+  /* ---------- List ---------- */
+  .li { display: flex; align-items: center; gap: 12px; padding: 14px; }
+  .li + .li { border-top: 1px solid var(--line); }
+  .li-sq { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .li-sq svg { width: 19px; height: 19px; }
+  .li-sq.s-mastered { background: var(--grn-bg); color: var(--grn-d); }
+  .li-sq.s-box { background: var(--coral-bg); color: var(--coral); }
+  .li-sq.s-learning { background: var(--amber-bg); color: var(--amber); }
+  .li-sq.s-new { background: var(--bg); color: var(--faint); }
+  .li-sq .dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+  .li-main { flex: 1; min-width: 0; }
+  .li-ja { font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .li-en { font-family: "Nunito"; font-size: 13px; font-weight: 700; color: var(--mute); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .li-tags { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
+
+  /* ---------- Result ---------- */
+  .result-top { text-align: center; }
+  .result-top .r-title { font-size: 21px; font-weight: 900; }
+  .result-top .r-sub { font-size: 13px; font-weight: 700; color: var(--mute); margin-top: 4px; }
+  .donut-wrap { display: flex; justify-content: center; margin: 8px 0; position: relative; }
+  .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .donut-pct { font-family: "Nunito"; font-weight: 800; font-size: 34px; color: var(--grn-d); line-height: 1; }
+  .donut-sub { font-family: "Nunito"; font-weight: 800; font-size: 13px; color: var(--mute); margin-top: 3px; }
+  .stat-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat-tile { background: var(--bg); border-radius: 16px; padding: 14px 6px; text-align: center; }
+  .stat-tile .st-num { font-family: "Nunito"; font-weight: 800; font-size: 24px; line-height: 1; }
+  .stat-tile .st-lbl { font-size: 11px; font-weight: 800; color: var(--mute); margin-top: 5px; }
+  .stat-tile.t-grn .st-num { color: var(--grn-d); }
+  .stat-tile.t-amber .st-num { color: #b6831b; }
+  .stat-tile.t-coral .st-num { color: #c4694a; }
+  .streak-pill { display: flex; align-items: center; justify-content: center; gap: 7px; background: var(--grn-bg);
+    color: var(--grn-d); border-radius: 999px; padding: 11px; font-weight: 800; font-size: 14px; margin: 14px 0 4px; }
+  .streak-pill svg { width: 18px; height: 18px; }
+
+  /* ---------- Settings ---------- */
+  .setting-line { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; }
+  .setting-line + .setting-line { border-top: 1px solid var(--line); }
+  .setting-line .label { font-size: 15px; font-weight: 700; }
+  .toggle { width: 46px; height: 28px; border-radius: 999px; background: var(--line); position: relative;
+    cursor: pointer; transition: background .15s; flex-shrink: 0; border: none; }
+  .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+    border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: left .15s; }
+  .toggle.on { background: var(--grn); }
+  .toggle.on::after { left: 21px; }
+  .segment { display: inline-flex; background: var(--bg); border-radius: 999px; padding: 3px; }
+  .segment button { border: none; background: none; font-family: inherit; font-weight: 800; font-size: 13px;
+    color: var(--mute); padding: 6px 16px; border-radius: 999px; cursor: pointer; }
+  .segment button.on { background: var(--grn); color: #fff; }
+
+  /* category selectable chips (register & catselect) */
+  .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 9px; }
+  .cat-card { display: flex; align-items: center; gap: 9px; border: 1.5px solid var(--line); border-radius: 16px;
+    padding: 11px 13px; cursor: pointer; background: var(--card); font-family: inherit; font-weight: 800;
+    font-size: 14px; color: var(--ink); text-align: left; transition: border-color .1s, background .1s; }
+  .cat-card .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .cat-card .cc-name { flex: 1; min-width: 0; }
+  .cat-card .cc-n { font-family: "Nunito"; font-size: 12px; font-weight: 700; color: var(--mute); }
+  .cat-card .cc-box { background: var(--coral-bg); color: #c4694a; border-radius: 999px; padding: 1px 7px; font-size: 11px; }
+  .cat-card .check { color: var(--faint); display: inline-flex; }
+  .cat-card .check svg { width: 18px; height: 18px; }
+  .cat-card.selected { border-color: var(--grn); background: var(--grn-bg); }
+  .cat-card.selected .check { color: var(--grn); }
+  .pick-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pick-chip { display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--line);
+    border-radius: 999px; padding: 7px 13px; font-family: inherit; font-weight: 800; font-size: 13px;
+    background: var(--card); color: var(--ink); cursor: pointer; }
+  .pick-chip .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .pick-chip.selected { border-color: var(--grn); background: var(--grn-bg); color: var(--grn-d); }
+  .pick-chip.add { color: var(--mute); border-style: dashed; }
+  .cat-toolbar { display: flex; align-items: center; gap: 8px; margin: 4px 2px 14px; }
+  .cat-sel-count { margin-left: auto; font-size: 13px; font-weight: 800; color: var(--mute); }
+
+  .csv-card { background: #eef4fb; }
+  .csv-card .csv-title { display: flex; align-items: center; gap: 8px; font-weight: 800; color: #3f6ea8; margin-bottom: 6px; }
+  .csv-result { margin-top: 10px; font-weight: 800; font-size: 13px; }
+  .code { font-family: "Nunito", monospace; background: rgba(63,110,168,.12); padding: 2px 7px; border-radius: 6px; font-size: 12px; color: #3f6ea8; }
+  .hint { color: var(--mute); font-size: 13px; font-weight: 700; }
+  .empty { text-align: center; color: var(--mute); padding: 40px 0; font-weight: 700; }
+
+  /* ---------- Bottom nav ---------- */
+  #bottomnav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; max-width: 440px; margin: 0 auto;
+    background: var(--card); box-shadow: 0 -3px 16px rgba(70,60,45,.07); display: flex; padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); }
+  #bottomnav button { flex: 1; border: none; background: none; cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; gap: 3px; font-family: inherit; font-size: 10px; font-weight: 800; color: var(--faint); padding: 4px 0; }
+  #bottomnav button svg { width: 24px; height: 24px; }
+  #bottomnav button.on { color: var(--grn-d); }
+  #bottomnav.hidden { display: none; }
+</style>
+</head>
+<body>
+  <main id="app"></main>
+  <nav id="bottomnav"></nav>
+  <div class="backdrop" id="backdrop"></div>
+  <div class="sheet" id="sheet"></div>
+
+<script>
+/* ============================================================
+   eibun-anki プロトタイプ — vanilla JS（B案 / MyRoutine 風）
+   仕様: spec.md 準拠（ゆるめ判定 / 間違えボックス / 件数10 / 連続2回卒業 / CSV / カテゴリ複数選択）
+   ============================================================ */
+const STORE_KEY = 'eibun-anki/v1';
+const DEFAULT_SETTINGS = {
+  recognitionLang: 'en-US', masteredThreshold: 2, sessionSize: 10,
+  dailyGoal: 10, reminder: true, dark: false,
+};
+
+/* ---------- アイコン（インラインSVG） ---------- */
+const ICON = {
+  back: '<path d="M15 5l-7 7 7 7"/>', close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  chevron: '<path d="M9 6l6 6-6 6"/>', search: '<circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4-4"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+  shield: '<path d="M12 3l7 2.5V11c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V5.5z" fill="currentColor" stroke="none"/>',
+  download: '<path d="M12 4v10m0 0l-4-4m4 4l4-4M5 19h14"/>', plus: '<path d="M12 6v12M6 12h12"/>',
+  check: '<path d="M5 12l4 4 10-10"/>', circle: '<circle cx="12" cy="12" r="9"/>',
+  home: '<path d="M4 11l8-7 8 7M6 10v9h12v-9"/>',
+  practice: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>',
+  list: '<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.2" fill="currentColor" stroke="none"/>',
+  settings: '<circle cx="8" cy="8" r="2.4"/><circle cx="16" cy="16" r="2.4"/><path d="M11 8h9M4 8h2M13 16h7M4 16h6"/>',
+};
+function svg(name, opts = '') {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${opts}>${ICON[name] || ''}</svg>`;
+}
+
+/* ---------- 永続化 ---------- */
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return fresh();
+    const data = JSON.parse(raw);
+    data.settings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
+    data.sentences = data.sentences || [];
+    data.stats = normStats(data.stats);
+    return data;
+  } catch { return fresh(); }
+}
+function fresh() { return { sentences: [], settings: { ...DEFAULT_SETTINGS }, stats: normStats() }; }
+function normStats(s = {}) {
+  return { streak: s.streak || 0, lastDate: s.lastDate || null,
+    daily: s.daily || { date: null, count: 0 }, days: s.days || [] };
+}
+function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+let state = load();
+let __seq = 0;
+
+/* ---------- サンプル ---------- */
+if (state.sentences.length === 0) {
+  [["I'm looking forward to seeing you.", "あなたに会えるのを楽しみにしています。", "会話"],
+   ["Could you tell me how to get to the station?", "駅への行き方を教えていただけますか？", "旅行"],
+   ["It depends on the situation.", "状況によります。", "会話"],
+   ["I couldn't agree with you more.", "全く同感です。", "会話"]]
+   .forEach(([en, ja, c]) => addSentence(en, ja, c, false));
+  save();
+}
+
+/* ---------- 日付ヘルパー ---------- */
+function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function todayStr() { return ymd(new Date()); }
+function yesterdayStr() { const d = new Date(); d.setDate(d.getDate()-1); return ymd(d); }
+
+/* ---------- データ操作 ---------- */
+function uid() { return 'id-' + Math.floor(performance.now()*1000).toString(36) + '-' + (++__seq); }
+function addSentence(english, japanese, note = '', persist = true) {
+  const now = Date.now();
+  state.sentences.push({ id: uid(), english: english.trim(), japanese: japanese.trim(), note: note.trim(),
+    createdAt: now, updatedAt: now, status: 'new', correctCount: 0, wrongCount: 0, streak: 0,
+    inWrongBox: false, lastResult: null, lastStudiedAt: null });
+  if (persist) save();
+}
+function updateSentence(id, fields) { const s = state.sentences.find(x => x.id === id); if (!s) return; Object.assign(s, fields, { updatedAt: Date.now() }); save(); }
+function deleteSentence(id) { state.sentences = state.sentences.filter(x => x.id !== id); save(); }
+
+/* ---------- ゆるめ判定 / diff ---------- */
+function normalize(str) { return str.toLowerCase().replace(/['’`]/g,'').replace(/[.,!?;:"“”()\-–—]/g,' ').replace(/\s+/g,' ').trim(); }
+function isCorrect(input, answer) { return normalize(input) === normalize(answer); }
+function wordDiff(answer, input) {
+  const aTok = answer.trim().split(/\s+/).filter(Boolean), iTok = input.trim().split(/\s+/).filter(Boolean);
+  const aN = aTok.map(normalize), iN = iTok.map(normalize), n = aN.length, m = iN.length;
+  const dp = Array.from({ length: n+1 }, () => new Array(m+1).fill(0));
+  for (let i=n-1;i>=0;i--) for (let j=m-1;j>=0;j--) dp[i][j] = aN[i]===iN[j] ? dp[i+1][j+1]+1 : Math.max(dp[i+1][j], dp[i][j+1]);
+  const out = []; let i=0,j=0;
+  while (i<n && j<m) { if (aN[i]===iN[j]) { out.push({t:aTok[i],k:'ok'}); i++; j++; } else if (dp[i+1][j]>=dp[i][j+1]) { out.push({t:aTok[i],k:'miss'}); i++; } else j++; }
+  while (i<n) { out.push({t:aTok[i],k:'miss'}); i++; }
+  return out;
+}
+
+/* ---------- CSV ---------- */
+function parseCSV(text) {
+  const rows = []; let row = [], field = '', inQ = false;
+  text = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  for (let i=0;i<text.length;i++) { const c = text[i];
+    if (inQ) { if (c === '"') { if (text[i+1] === '"') { field += '"'; i++; } else inQ = false; } else field += c; }
+    else { if (c === '"') inQ = true; else if (c === ',') { row.push(field); field = ''; } else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; } else field += c; } }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ''));
+}
+function looksLikeHeader(row) {
+  const cells = row.map(c => c.trim().toLowerCase());
+  const t = ['english','eng','英文','japanese','ja','日本語','日本語訳','訳','note','メモ','備考','カテゴリ','category'];
+  return cells.some(c => t.includes(c));
+}
+function importCSV(text) {
+  const rows = parseCSV(text); if (!rows.length) return { added: 0, skipped: 0 };
+  let start = looksLikeHeader(rows[0]) ? 1 : 0, added = 0, skipped = 0;
+  for (let i=start;i<rows.length;i++) { const [en='',ja='',note=''] = rows[i];
+    if (en.trim() && ja.trim()) { addSentence(en, ja, note, false); added++; } else skipped++; }
+  save(); return { added, skipped };
+}
+
+/* ---------- 出題 ---------- */
+function shuffle(arr) { const a = [...arr]; for (let i=a.length-1;i>0;i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function buildQueue(mode, category) {
+  const inBox = s => s.inWrongBox;
+  if (mode === 'box') return shuffle(state.sentences.filter(inBox)).slice(0, state.settings.sessionSize).map(s => s.id);
+  if (mode === 'category') {
+    const cats = Array.isArray(category) ? category : [category];
+    const set = new Set(cats.map(c => c || ''));
+    const all = state.sentences.filter(s => set.has(s.note || ''));
+    return [...shuffle(all.filter(inBox)), ...shuffle(all.filter(s => !inBox(s)))].map(s => s.id);
+  }
+  let base = state.sentences.filter(s => s.status !== 'mastered'); if (base.length === 0) base = state.sentences;
+  return shuffle(base).slice(0, state.settings.sessionSize).map(s => s.id);
+}
+let session = null;
+function startSession(mode, category) {
+  const queue = buildQueue(mode, category); if (queue.length === 0) { go('home'); return; }
+  let label = mode === 'box' ? '間違え復習' : mode === 'category'
+    ? (Array.isArray(category) && category.length > 1 ? `カテゴリ ${category.length}件` : 'カテゴリ練習') : '練習';
+  session = { queue, idx: 0, results: [], mode, category: category || null, label };
+  go('practice');
+}
+
+/* ---------- カテゴリ ---------- */
+const CAT_PALETTE = ['#6FC18E','#6FA8E0','#B196E8','#F2A65A','#F08FB4','#6FC1B8','#E59E6F','#8FB46F','#D58FD5','#7FB0D0'];
+function catColor(name) { if (!name) return '#C5C1B6'; let h = 0; for (const ch of name) h = (h*31 + ch.charCodeAt(0)) >>> 0; return CAT_PALETTE[h % CAT_PALETTE.length]; }
+function categoryList() {
+  const map = new Map();
+  for (const s of state.sentences) {
+    const value = (s.note || '').trim(), name = value || '（カテゴリなし）';
+    if (!map.has(value)) map.set(value, { value, name, total: 0, box: 0, mastered: 0 });
+    const e = map.get(value); e.total++; if (s.inWrongBox) e.box++; if (s.status === 'mastered') e.mastered++;
+  }
+  return [...map.values()];
+}
+
+/* ---------- 学習記録（ストリーク/デイリー） ---------- */
+function recordStudy() {
+  const t = todayStr(), st = state.stats;
+  if (!st.days.includes(t)) st.days.push(t);
+  if (st.daily.date !== t) st.daily = { date: t, count: 0 };
+  st.daily.count++;
+  if (st.lastDate !== t) { st.streak = (st.lastDate === yesterdayStr()) ? st.streak + 1 : 1; st.lastDate = t; }
+}
+function todayCount() { return state.stats.daily.date === todayStr() ? state.stats.daily.count : 0; }
+
+/* ---------- 状態遷移 ---------- */
+function applyResult(s, correct) {
+  const now = Date.now();
+  if (correct) { s.correctCount++; s.streak++; s.lastResult = 'correct';
+    if (s.inWrongBox) { if (s.streak >= state.settings.masteredThreshold) { s.inWrongBox = false; s.status = 'mastered'; } else s.status = 'learning'; }
+    else { if (s.streak >= state.settings.masteredThreshold) s.status = 'mastered'; else if (s.status === 'new') s.status = 'learning'; }
+  } else { s.wrongCount++; s.streak = 0; s.lastResult = 'wrong'; s.inWrongBox = true; s.status = 'learning'; }
+  s.lastStudiedAt = now; s.updatedAt = now; recordStudy(); save();
+}
+function counts() {
+  const a = state.sentences;
+  return { total: a.length, mastered: a.filter(s => s.status==='mastered').length,
+    learning: a.filter(s => s.status==='learning').length, box: a.filter(s => s.inWrongBox).length };
+}
+
+/* ============================================================
+   ルーティング
+   ============================================================ */
+let editingId = null, listFilter = 'all', listQuery = '', recognition = null;
+let selectedCats = new Set(), editCat = '';
+const app = document.getElementById('app');
+const bottomnav = document.getElementById('bottomnav');
+const backdrop = document.getElementById('backdrop');
+const sheet = document.getElementById('sheet');
+backdrop.onclick = () => closeSheet();
+
+const TAB_SCREENS = { home: true, list: true, settings: true };
+function go(view) {
+  if (view === 'home') renderHome();
+  else if (view === 'practice') renderPractice();
+  else if (view === 'edit') renderEdit();
+  else if (view === 'list') renderList();
+  else if (view === 'result') renderResult();
+  else if (view === 'settings') renderSettings();
+  else if (view === 'catselect') renderCatSelect();
+  renderNav(view);
+  window.scrollTo(0, 0);
+}
+function renderNav(view) {
+  const tab = TAB_SCREENS[view];
+  bottomnav.classList.toggle('hidden', !tab);
+  if (!tab) return;
+  const items = [['home','ホーム','home'],['practice','練習','practice'],['list','一覧','list'],['settings','設定','settings']];
+  const active = view;
+  bottomnav.innerHTML = items.map(([key,label,icon]) =>
+    `<button data-nav="${key}" class="${active===key?'on':''}">${svg(icon)}<span>${label}</span></button>`).join('');
+  bottomnav.querySelectorAll('[data-nav]').forEach(b => b.onclick = () => {
+    const k = b.dataset.nav;
+    if (k === 'practice') { if (counts().total) startSession('random'); else go('home'); }
+    else go(k);
+  });
+}
+
+/* ============================================================
+   ホーム
+   ============================================================ */
+function renderHome() {
+  const c = counts(), st = state.stats;
+  const goal = state.settings.dailyGoal, done = todayCount();
+  const pct = goal ? Math.min(1, done / goal) : 0, lit = done >= goal && goal > 0;
+  const remain = Math.max(0, goal - done);
+  const now = new Date(), h = now.getHours();
+  const hi = h < 11 ? 'おはよう' : h < 18 ? 'こんにちは' : 'こんばんは';
+  const dstr = `${now.getMonth()+1}月${now.getDate()}日 ${['日','月','火','水','木','金','土'][now.getDay()]}曜日`;
+
+  app.innerHTML = `
+    <div class="scr-header">
+      <div class="greet"><div class="g-hi">${hi}、Saki 🌿</div><div class="g-date">${dstr}</div></div>
+      <span class="streak">${svg('shield')}${st.streak}日</span>
+    </div>
+
+    <div class="card glcard">
+      <div class="gl-ring ${lit?'lit':''}">
+        ${ringSVG(pct, 88, 8)}
+        <div class="gl-center">
+          <span class="gl-now">${done}</span><span class="gl-goal">/ ${goal}</span>
+        </div>
+      </div>
+      <div class="gl-body">
+        <div class="gl-title">今日のグリーンライト</div>
+        <div class="gl-msg">${lit ? '点灯！よくがんばりました 🎉' : `あと${remain}問で点灯！`}</div>
+        <div class="gl-sub">覚えた英文 ${c.mastered} / ${c.total}</div>
+        ${done>0 ? `<span class="gl-tag">👍 調子いいね</span>` : ''}
+      </div>
+    </div>
+
+    <div class="sect-label">今日の練習</div>
+    <div class="card" style="padding:6px">
+      <div class="mode-row" data-mode="random" ${c.total===0?'aria-disabled="true"':''}>
+        <div class="mode-sq">🔀</div>
+        <div class="mode-main"><div class="mode-title">ランダム練習</div>
+          <div class="mode-sub">未マスターから ${Math.min(state.settings.sessionSize, c.total)}問</div></div>
+        <span class="chev">${svg('chevron')}</span>
+      </div>
+      <div class="mode-row" data-mode="box" ${c.box===0?'aria-disabled="true"':''}>
+        <div class="mode-sq coral">🔁</div>
+        <div class="mode-main"><div class="mode-title">間違え復習</div>
+          <div class="mode-sub">間違えボックス・${c.box}問</div></div>
+        <span class="chev">${svg('chevron')}</span>
+      </div>
+      <div class="mode-row" data-mode="catselect" ${c.total===0?'aria-disabled="true"':''}>
+        <div class="mode-sq violet">📚</div>
+        <div class="mode-main"><div class="mode-title">カテゴリ別</div>
+          <div class="mode-sub">${categoryList().length}カテゴリから選ぶ</div></div>
+        <span class="chev">${svg('chevron')}</span>
+      </div>
+    </div>
+
+    <div class="sect-label">今週のリズム</div>
+    <div class="card">${weekDots()}</div>
+
+    ${c.total===0 ? `<p class="hint" style="text-align:center;margin-top:16px">下の「練習」や右上の管理から英文を登録してください。</p>` : ''}
+  `;
+  app.querySelectorAll('.mode-row').forEach(row => row.onclick = () => {
+    const m = row.dataset.mode;
+    if (m === 'catselect') go('catselect'); else startSession(m);
+  });
+}
+function weekDots() {
+  const now = new Date(), dow = (now.getDay()+6)%7, monday = new Date(now); monday.setDate(now.getDate()-dow);
+  const labels = ['月','火','水','木','金','土','日'], tstr = todayStr(); let html = '';
+  for (let i=0;i<7;i++) { const d = new Date(monday); d.setDate(monday.getDate()+i); const key = ymd(d);
+    const done = state.stats.days.includes(key), today = key === tstr;
+    html += `<div class="wd ${done?'done':''} ${today?'today':''}"><div class="wd-dot">${done?svg('check'):''}</div><div class="wd-lbl">${labels[i]}</div></div>`;
+  }
+  return `<div class="week">${html}</div>`;
+}
+function ringSVG(pct, size, stroke) {
+  const r = (size-stroke)/2, c = 2*Math.PI*r, off = c*(1-pct), cx = size/2;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="gl-disc">
+    <circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${stroke}"/>
+    <circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="var(--grn)" stroke-width="${stroke}" stroke-linecap="round"
+      stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 ${cx} ${cx})"/>
+  </svg>`;
+}
+
+/* ============================================================
+   カテゴリ選択（複数選択）
+   ============================================================ */
+function renderCatSelect() {
+  const cats = categoryList();
+  app.innerHTML = `
+    <div class="scr-header">
+      <button class="icon-btn" id="back">${svg('back')}</button>
+      <div class="h-title">カテゴリを選ぶ</div>
+    </div>
+    <p class="hint" style="margin:0 2px 14px">練習したいカテゴリを選んでください（複数選択OK）。</p>
+    <div class="cat-toolbar">
+      <button class="pill" id="catAll">すべて選択</button>
+      <button class="pill" id="catNone">選択解除</button>
+      <span class="cat-sel-count" id="catSelCount"></span>
+    </div>
+    <div class="cat-grid" id="catGrid">${cats.map(e => catCard(e, selectedCats.has(e.value))).join('')}</div>
+    <div style="position:sticky;bottom:90px;margin-top:16px">
+      <button class="btn btn-grn btn-block" id="startCats" disabled>カテゴリを選んでください</button>
+    </div>`;
+  app.querySelector('#back').onclick = () => go('home');
+  const grid = app.querySelector('#catGrid');
+  const refresh = () => {
+    const n = selectedCats.size, q = cats.filter(e => selectedCats.has(e.value)).reduce((a,e)=>a+e.total,0);
+    app.querySelector('#catSelCount').textContent = n ? `${n}カテゴリ / ${q}問` : '未選択';
+    const btn = app.querySelector('#startCats'); btn.disabled = n === 0;
+    btn.textContent = n ? `選択したカテゴリで練習 (${q}問)` : 'カテゴリを選んでください';
+  };
+  const setCard = (card, on) => { card.classList.toggle('selected', on); card.querySelector('.check').innerHTML = on ? svg('check') : svg('circle'); };
+  grid.querySelectorAll('.cat-card').forEach(card => card.onclick = () => {
+    const v = card.dataset.cat; if (selectedCats.has(v)) selectedCats.delete(v); else selectedCats.add(v);
+    setCard(card, selectedCats.has(v)); refresh();
+  });
+  app.querySelector('#catAll').onclick = () => { cats.forEach(e => selectedCats.add(e.value)); grid.querySelectorAll('.cat-card').forEach(c => setCard(c, true)); refresh(); };
+  app.querySelector('#catNone').onclick = () => { selectedCats.clear(); grid.querySelectorAll('.cat-card').forEach(c => setCard(c, false)); refresh(); };
+  app.querySelector('#startCats').onclick = () => { if (selectedCats.size) startSession('category', [...selectedCats]); };
+  refresh();
+}
+function catCard(e, selected) {
+  const meta = e.box > 0 ? `<span class="cc-box">復習${e.box}</span>` : `<span class="cc-n">${e.total}問</span>`;
+  return `<button class="cat-card ${selected?'selected':''}" data-cat="${escapeAttr(e.value)}">
+    <span class="dot" style="background:${catColor(e.value)}"></span>
+    <span class="cc-name">${escapeHtml(e.name)}</span>${meta}
+    <span class="check">${selected ? svg('check') : svg('circle')}</span></button>`;
+}
+
+/* ============================================================
+   練習
+   ============================================================ */
+function renderPractice() {
+  const s = state.sentences.find(x => x.id === session.queue[session.idx]);
+  if (!s) { finishSession(); return; }
+  const total = session.queue.length, cur = session.idx + 1;
+  const speechOK = ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+  const cat = (s.note || '').trim();
+  app.innerHTML = `
+    <div class="p-top">
+      <button class="icon-btn" id="closeP">${svg('close')}</button>
+      <div class="pbar"><span style="width:${(session.idx/total)*100}%"></span></div>
+      <span class="p-count">${cur}/${total}</span>
+    </div>
+    <div class="card">
+      ${cat ? `<div class="q-cat"><span class="chip"><span class="dot" style="background:${catColor(cat)}"></span>${escapeHtml(cat)}</span></div>` : ''}
+      <div class="q-prompt-label">この日本語を英語で 🗣️</div>
+      <div class="ja-prompt">${escapeHtml(s.japanese)}</div>
+      <div class="field" style="margin:18px 0 0">
+        <textarea class="input" id="answer" rows="2" placeholder="英文を入力…" autocapitalize="off" autocomplete="off"></textarea>
+      </div>
+      <div class="mic-row">
+        <button class="mic-btn" id="micBtn" ${speechOK?'':'disabled'}>${svg('mic')}</button>
+        <span class="mic-status" id="micStatus">${speechOK ? 'マイクで声に出して答える' : '※ このブラウザは音声入力に非対応'}</span>
+      </div>
+    </div>
+    <button class="btn btn-grn btn-block" id="checkBtn" style="margin-top:6px">答え合わせ</button>`;
+
+  const answer = app.querySelector('#answer');
+  setTimeout(() => answer.focus(), 50);
+  app.querySelector('#closeP').onclick = () => { closeSheet(); go('home'); };
+  function check() {
+    const val = answer.value.trim(); if (!val) { answer.focus(); return; }
+    const correct = isCorrect(val, s.english);
+    applyResult(s, correct); session.results.push({ id: s.id, correct });
+    showFeedback(s, val, correct);
+  }
+  app.querySelector('#checkBtn').onclick = check;
+  answer.addEventListener('keydown', e => { if ((e.metaKey||e.ctrlKey) && e.key === 'Enter') check(); });
+
+  const micBtn = app.querySelector('#micBtn'), micStatus = app.querySelector('#micStatus');
+  if (speechOK) micBtn.onclick = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition; recognition = new SR();
+    recognition.lang = state.settings.recognitionLang; recognition.interimResults = false; recognition.maxAlternatives = 1;
+    micStatus.innerHTML = '<span class="recording">● 録音中…話してください</span>';
+    recognition.onresult = (e) => { const txt = e.results[0][0].transcript; answer.value = (answer.value?answer.value+' ':'')+txt; micStatus.textContent = '認識しました（必要なら手で修正）'; };
+    recognition.onerror = (e) => { micStatus.textContent = '認識できませんでした（'+e.error+'）'; };
+    recognition.onend = () => { if (micStatus.querySelector('.recording')) micStatus.textContent = 'マイクで声に出して答える'; };
+    recognition.start();
+  };
+}
+function showFeedback(s, input, correct) {
+  if (correct) {
+    sheet.className = 'sheet correct';
+    sheet.innerHTML = `
+      <div class="s-head"><span class="s-emoji">🎉</span>正解！その調子</div>
+      <div class="s-msg">よく覚えていますね。</div>
+      <div class="ans-block"><div class="ans-cap">正しい英文</div><div class="ans-en">${escapeHtml(s.english)}</div></div>
+      <button class="btn btn-grn btn-block" id="nextBtn" style="margin-top:8px">つづける</button>`;
+  } else {
+    const diff = wordDiff(s.english, input).map(w => w.k==='miss' ? `<span class="hl">${escapeHtml(w.t)}</span>` : escapeHtml(w.t)).join(' ');
+    sheet.className = 'sheet wrong';
+    sheet.innerHTML = `
+      <div class="s-head"><span class="s-emoji">🙂</span>おしい！もう少し</div>
+      <div class="s-msg">復習ボックスに入れておくね。</div>
+      <div class="ans-block"><div class="ans-cap">正しい英文</div><div class="ans-en">${escapeHtml(s.english)}</div></div>
+      <div class="ans-block"><div class="ans-cap">あなたの答え</div><div class="ans-en">${diff}</div></div>
+      <div class="actions" style="margin-top:14px">
+        <button class="btn btn-soft" id="retryBtn" style="flex:1">もう一度</button>
+        <button class="btn btn-grn" id="nextBtn" style="flex:1.4">つづける</button>
+      </div>`;
+  }
+  openSheet();
+  sheet.querySelector('#nextBtn').onclick = () => { closeSheet(); nextQuestion(); };
+  sheet.querySelector('#retryBtn')?.addEventListener('click', () => { closeSheet(); renderPractice(); });
+}
+function openSheet() { sheet.classList.add('open'); backdrop.classList.add('open'); }
+function closeSheet() { sheet.classList.remove('open'); backdrop.classList.remove('open'); }
+function nextQuestion() { session.idx++; if (session.idx >= session.queue.length) finishSession(); else renderPractice(); }
+function finishSession() { go('result'); }
+
+/* ============================================================
+   結果
+   ============================================================ */
+function renderResult() {
+  renderNav('result');
+  const r = session.results, correct = r.filter(x => x.correct).length, total = r.length;
+  const pct = total ? Math.round(correct/total*100) : 0, c = counts();
+  app.innerHTML = `
+    <div class="card result-top">
+      <div class="r-title">セッション完了！🎉</div>
+      <div class="r-sub">今日もよくがんばりました</div>
+      <div class="donut-wrap">
+        ${ringSVG(total?correct/total:0, 150, 14)}
+        <div class="donut-center"><div class="donut-pct">${pct}%</div><div class="donut-sub">${correct} / ${total} 正解</div></div>
+      </div>
+      <div class="stat-tiles">
+        <div class="stat-tile t-grn"><div class="st-num">${c.mastered}</div><div class="st-lbl">覚えた</div></div>
+        <div class="stat-tile t-amber"><div class="st-num">${c.learning}</div><div class="st-lbl">練習中</div></div>
+        <div class="stat-tile t-coral"><div class="st-num">${c.box}</div><div class="st-lbl">復習</div></div>
+      </div>
+      <div class="streak-pill">${svg('shield')} ${state.stats.streak}日連続 · シールド +1</div>
+    </div>
+    <div class="actions" style="flex-direction:column">
+      ${c.box>0
+        ? `<button class="btn btn-grn btn-block" id="againBox">間違えだけ、もう一度（${c.box}）</button>`
+        : `<button class="btn btn-grn btn-block" id="againSame">同じ条件でもう一度</button>`}
+      <button class="btn btn-soft btn-block" id="toHome">ホームへ戻る</button>
+    </div>`;
+  app.querySelector('#againBox')?.addEventListener('click', () => startSession('box'));
+  app.querySelector('#againSame')?.addEventListener('click', () => startSession(session.mode||'random', session.category));
+  app.querySelector('#toHome').onclick = () => go('home');
+}
+
+/* ============================================================
+   登録・編集（＋CSV）
+   ============================================================ */
+function renderEdit() {
+  const editing = editingId ? state.sentences.find(s => s.id === editingId) : null;
+  editCat = editing ? (editing.note || '') : editCat;
+  app.innerHTML = `
+    <div class="scr-header">
+      <button class="icon-btn" id="back">${svg('back')}</button>
+      <div class="h-title">${editing ? '英文を編集' : '英文を登録'}</div>
+      <button class="txt-action" id="saveTop">保存</button>
+    </div>
+    <div class="card">
+      <div class="field"><label class="field-label">英文（正解）</label>
+        <textarea class="input" id="fEn" rows="2" placeholder="I see.">${escapeHtml(editing?.english||'')}</textarea></div>
+      <div class="field"><label class="field-label">日本語訳</label>
+        <textarea class="input" id="fJa" rows="2" placeholder="なるほど。">${escapeHtml(editing?.japanese||'')}</textarea></div>
+      <div class="field"><label class="field-label">カテゴリ</label>
+        <div class="pick-chips" id="catPick"></div></div>
+      <div id="errMsg" class="hint" style="color:var(--coral);font-weight:800"></div>
+      <button class="btn btn-grn btn-block" id="saveBtn" style="margin-top:6px">保存する</button>
+      ${editing ? '' : '<button class="btn btn-soft-grn btn-block" id="saveNext" style="margin-top:10px">＋ 保存して続けて登録</button>'}
+      ${editing ? '<button class="btn btn-soft btn-block" id="delBtn" style="margin-top:10px;color:var(--coral)">削除</button>' : ''}
+    </div>
+    ${editing ? '' : `
+    <div class="card csv-card">
+      <div class="csv-title">📄 CSVで一括登録</div>
+      <p class="hint" style="color:#5b7da8">列の順番： <span class="code">英文 , 日本語訳 , メモ(任意)</span>。1行目がヘッダーなら自動スキップ。</p>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn btn-soft" id="pickCsv" style="flex:1">CSVファイルを選ぶ</button>
+        <button class="btn btn-soft" id="dlSample" style="flex:1">サンプル</button>
+      </div>
+      <input type="file" id="csvFile" accept=".csv,text/csv" style="display:none">
+      <div class="field" style="margin:12px 0 0"><label class="field-label" style="color:#5b7da8">または貼り付け</label>
+        <textarea class="input" id="csvText" rows="3" placeholder='I see.,なるほど。,会話'></textarea></div>
+      <button class="btn btn-grn btn-block" id="importCsvBtn" style="margin-top:10px">取り込む</button>
+      <div class="csv-result" id="csvResult"></div>
+    </div>`}`;
+  app.querySelector('#back').onclick = () => go(editing ? 'list' : 'home');
+
+  // カテゴリ選択チップ
+  function renderCatPick() {
+    const cats = categoryList().map(e => e.value).filter(Boolean);
+    if (editCat && !cats.includes(editCat)) cats.push(editCat);
+    const pick = app.querySelector('#catPick');
+    pick.innerHTML = cats.map(v => `<button class="pick-chip ${editCat===v?'selected':''}" data-v="${escapeAttr(v)}"><span class="dot" style="background:${catColor(v)}"></span>${escapeHtml(v)}</button>`).join('')
+      + `<button class="pick-chip add" id="catAdd">＋ 追加</button>`;
+    pick.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { editCat = (editCat === b.dataset.v) ? '' : b.dataset.v; renderCatPick(); });
+    pick.querySelector('#catAdd').onclick = () => { const v = prompt('新しいカテゴリ名'); if (v && v.trim()) { editCat = v.trim(); renderCatPick(); } };
+  }
+  renderCatPick();
+
+  const fEn = app.querySelector('#fEn'), fJa = app.querySelector('#fJa'), err = app.querySelector('#errMsg');
+  function doSave(next) {
+    const en = fEn.value.trim(), ja = fJa.value.trim();
+    if (!en || !ja) { err.textContent = '英文と日本語訳は必須です。'; return; }
+    if (editing) updateSentence(editing.id, { english: en, japanese: ja, note: editCat });
+    else addSentence(en, ja, editCat);
+    if (next) { fEn.value=''; fJa.value=''; err.textContent=''; fEn.focus(); }
+    else go(editing ? 'list' : 'home');
+  }
+  app.querySelector('#saveBtn').onclick = () => doSave(false);
+  app.querySelector('#saveTop').onclick = () => doSave(false);
+  app.querySelector('#saveNext')?.addEventListener('click', () => doSave(true));
+  app.querySelector('#delBtn')?.addEventListener('click', () => { if (confirm('この英文を削除しますか？')) { deleteSentence(editing.id); go('list'); } });
+
+  if (!editing) {
+    const csvFile = app.querySelector('#csvFile'), csvText = app.querySelector('#csvText'), csvResult = app.querySelector('#csvResult');
+    const show = r => { csvResult.innerHTML = `<span style="color:var(--grn-d)">✅ ${r.added}件を登録しました。</span>` + (r.skipped?` <span style="color:var(--mute)">（${r.skipped}件スキップ）</span>`:''); };
+    app.querySelector('#pickCsv').onclick = () => csvFile.click();
+    csvFile.onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { show(importCSV(rd.result)); csvText.value=''; }; rd.readAsText(f, 'utf-8'); };
+    app.querySelector('#importCsvBtn').onclick = () => { const t = csvText.value.trim(); if (!t) { csvResult.innerHTML = '<span style="color:var(--coral)">CSVを貼り付けるかファイルを選んでください。</span>'; return; } show(importCSV(t)); };
+    app.querySelector('#dlSample').onclick = () => {
+      const sample = 'english,japanese,note\n"I see.",なるほど。,会話\n"It\'s up to you.",あなた次第です。,会話\n';
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([sample], {type:'text/csv'})); a.download = 'eibun-anki-sample.csv'; a.click();
+    };
+  }
+  setTimeout(() => fEn.focus(), 50);
+}
+
+/* ============================================================
+   一覧
+   ============================================================ */
+function renderList() {
+  const c = counts();
+  const filters = [['all','すべて'],['box','復習'],['learning','練習中'],['mastered','覚えた']];
+  let items = state.sentences;
+  if (listFilter === 'box') items = items.filter(s => s.inWrongBox);
+  else if (listFilter !== 'all') items = items.filter(s => s.status === listFilter);
+  if (listQuery) { const q = listQuery.toLowerCase(); items = items.filter(s => s.english.toLowerCase().includes(q) || s.japanese.toLowerCase().includes(q) || (s.note||'').toLowerCase().includes(q)); }
+
+  app.innerHTML = `
+    <div class="scr-header"><div class="h-title">英文の一覧</div><div class="h-sub num-font">${c.total}</div>
+      <button class="icon-btn" id="add">${svg('plus')}</button></div>
+    <div class="search">${svg('search')}<input id="q" placeholder="英文・訳で検索" value="${escapeAttr(listQuery)}"></div>
+    <div class="pills" style="margin-bottom:14px">
+      ${filters.map(([k,l]) => `<button class="pill ${listFilter===k?'on':''}" data-f="${k}">${l}</button>`).join('')}
+    </div>
+    <div class="card" style="padding:4px">
+      ${items.length === 0 ? `<div class="empty">該当する英文がありません</div>` : items.map(listRow).join('')}
+    </div>`;
+  app.querySelector('#add').onclick = () => { editingId = null; editCat = ''; go('edit'); };
+  app.querySelectorAll('.pill').forEach(p => p.onclick = () => { listFilter = p.dataset.f; renderList(); });
+  const q = app.querySelector('#q');
+  q.oninput = () => { listQuery = q.value; const pos = q.selectionStart; renderList(); const nq = app.querySelector('#q'); nq.focus(); nq.setSelectionRange(pos,pos); };
+  app.querySelectorAll('[data-edit]').forEach(el => el.onclick = () => { editingId = el.dataset.edit; go('edit'); });
+}
+function listRow(s) {
+  const cat = (s.note || '').trim();
+  const stMap = { mastered:['s-mastered','覚えた'], learning:['s-learning','練習中'], new:['s-new','未着手'] };
+  const stKey = s.inWrongBox ? 'box' : s.status;
+  const [sqCls] = s.inWrongBox ? ['s-box'] : (stMap[s.status]||stMap.new);
+  const sqInner = s.status === 'mastered' ? svg('check') : '<span class="dot"></span>';
+  const catTag = cat ? `<span class="chip"><span class="dot" style="background:${catColor(cat)}"></span>${escapeHtml(cat)}</span>` : '';
+  const stChip = s.inWrongBox ? `<span class="chip st-box"><span class="dot"></span>復習</span>`
+    : s.status==='mastered' ? `<span class="chip st-mastered"><span class="dot"></span>覚えた</span>`
+    : s.status==='learning' ? `<span class="chip st-learning"><span class="dot"></span>練習中</span>`
+    : `<span class="chip st-new"><span class="dot"></span>未着手</span>`;
+  return `<div class="li" data-edit="${s.id}">
+    <div class="li-sq ${sqCls}">${sqInner}</div>
+    <div class="li-main"><div class="li-ja">${escapeHtml(s.japanese)}</div>
+      <div class="li-en">${escapeHtml(s.english)}</div>
+      <div class="li-tags">${catTag}${stChip}</div></div>
+  </div>`;
+}
+
+/* ============================================================
+   設定
+   ============================================================ */
+function renderSettings() {
+  const st = state.settings;
+  app.innerHTML = `
+    <div class="scr-header"><div class="h-title">設定</div></div>
+    <div class="sect-label">学習</div>
+    <div class="card" style="padding:4px 18px">
+      <div class="setting-line"><span class="label">1セッションの出題数</span>
+        <input class="input num-input" id="sSize" type="number" min="1" value="${st.sessionSize}"></div>
+      <div class="setting-line"><span class="label">卒業に必要な連続正解</span>
+        <input class="input num-input" id="sThresh" type="number" min="1" value="${st.masteredThreshold}"></div>
+      <div class="setting-line"><span class="label">1日の目標（グリーンライト）</span>
+        <input class="input num-input" id="sGoal" type="number" min="1" value="${st.dailyGoal}"></div>
+      <div class="setting-line"><span class="label">音声認識</span>
+        <div class="segment"><button data-lang="en-US" class="${st.recognitionLang==='en-US'?'on':''}">US</button><button data-lang="en-GB" class="${st.recognitionLang==='en-GB'?'on':''}">GB</button></div></div>
+    </div>
+    <div class="sect-label">通知・表示</div>
+    <div class="card" style="padding:4px 18px">
+      <div class="setting-line"><span class="label">練習リマインダー</span>
+        <button class="toggle ${st.reminder?'on':''}" id="tReminder"></button></div>
+      <div class="setting-line"><span class="label">ダークモード <span class="hint">（準備中）</span></span>
+        <button class="toggle ${st.dark?'on':''}" id="tDark"></button></div>
+    </div>
+    <div class="sect-label">データ</div>
+    <div class="card" style="padding:18px">
+      <p class="hint" style="margin:0 0 12px">データは端末内（localStorage）にのみ保存されます。</p>
+      <button class="btn btn-soft btn-block" id="exportBtn">${svg('download')} データをエクスポート</button>
+      <button class="btn btn-soft btn-block" id="importBtn" style="margin-top:10px">インポート</button>
+      <button class="btn btn-soft btn-block" id="resetBtn" style="margin-top:10px;color:var(--coral)">全データ削除</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+    </div>`;
+  const num = (id, key, def) => app.querySelector(id).onchange = e => { state.settings[key] = Math.max(1, parseInt(e.target.value)||def); save(); };
+  num('#sSize','sessionSize',10); num('#sThresh','masteredThreshold',2); num('#sGoal','dailyGoal',10);
+  app.querySelectorAll('[data-lang]').forEach(b => b.onclick = () => { state.settings.recognitionLang = b.dataset.lang; save(); renderSettings(); });
+  app.querySelector('#tReminder').onclick = () => { state.settings.reminder = !state.settings.reminder; save(); renderSettings(); };
+  app.querySelector('#tDark').onclick = () => { state.settings.dark = !state.settings.dark; save(); renderSettings(); };
+  app.querySelector('#exportBtn').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'})); a.download = 'eibun-anki-backup.json'; a.click(); };
+  const importFile = app.querySelector('#importFile');
+  app.querySelector('#importBtn').onclick = () => importFile.click();
+  importFile.onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { try { const d = JSON.parse(rd.result); if (!Array.isArray(d.sentences)) throw new Error('形式不正'); state = { sentences:d.sentences, settings:{...DEFAULT_SETTINGS,...(d.settings||{})}, stats: normStats(d.stats) }; save(); alert('インポートしました'); go('home'); } catch(err){ alert('インポート失敗: '+err.message); } }; rd.readAsText(f); };
+  app.querySelector('#resetBtn').onclick = () => { if (confirm('登録した英文と成績をすべて削除します。よろしいですか？')) { state = fresh(); save(); go('home'); } };
+}
+
+/* ---------- util ---------- */
+function escapeHtml(s='') { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s='') { return escapeHtml(s).replace(/\n/g,'&#10;'); }
+
+go('home');
+</script>
+</body>
+</html>
