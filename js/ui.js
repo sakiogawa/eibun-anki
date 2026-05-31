@@ -69,6 +69,9 @@ function renderHome() {
       </div>
     </div>
 
+    <div class="sect-label">英文の進み具合</div>
+    <div class="card progress-card">${learningStatusDashboard(c)}</div>
+
     <div class="sect-label">今日の練習</div>
     <div class="card" style="padding:6px">
       <div class="mode-row" data-mode="random" ${c.total===0?'aria-disabled="true"':''}>
@@ -113,6 +116,22 @@ function weekDots() {
   }
   return `<div class="week">${html}</div>`;
 }
+function learningStatusDashboard(c) {
+  const newCount = c.new ?? Math.max(0, c.total - c.mastered - c.learning);
+  const total = Math.max(1, c.total);
+  const pct = n => Math.round(n / total * 100);
+  const masteredPct = pct(c.mastered), learningPct = pct(c.learning), newPct = pct(newCount);
+  return `<div class="status-bar" aria-label="英文の学習状態">
+      <span class="status-seg mastered" style="width:${masteredPct}%"></span>
+      <span class="status-seg learning" style="width:${learningPct}%"></span>
+      <span class="status-seg new" style="width:${newPct}%"></span>
+    </div>
+    <div class="status-stats">
+      <div class="status-stat mastered"><div class="status-num">${c.mastered}</div><div class="status-label">覚えた</div><div class="status-pct">${c.total ? masteredPct : 0}%</div></div>
+      <div class="status-stat learning"><div class="status-num">${c.learning}</div><div class="status-label">覚え中</div><div class="status-pct">${c.total ? learningPct : 0}%</div></div>
+      <div class="status-stat new"><div class="status-num">${newCount}</div><div class="status-label">未着手</div><div class="status-pct">${c.total ? newPct : 0}%</div></div>
+    </div>`;
+}
 function heatLevel(count) {
   if (!count) return 0;
   if (count < 5) return 1;
@@ -127,15 +146,23 @@ function learningHeatmap(days = 98) {
   const offset = start.getDay(); // 日曜始まりでGitHub風に縦7マスへ並べる
   start.setDate(start.getDate() - offset);
   const today = todayStr();
-  let cells = '', total = 0;
+  let cells = '', months = '', i = 0, lastMonth = -1;
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const key = ymd(d), n = counts[key] || 0, lv = heatLevel(n); total += n;
+    const key = ymd(d), n = counts[key] || 0, lv = heatLevel(n);
+    const col = Math.floor(i / 7) + 1;
+    if (d.getMonth() !== lastMonth) {
+      months += `<span class="heat-month" style="grid-column:${col}">${d.getMonth()+1}月</span>`;
+      lastMonth = d.getMonth();
+    }
     cells += `<span class="heat-cell ${lv ? `lv${lv}` : ''}" title="${key}: ${n}問" aria-label="${key}: ${n}問"></span>`;
+    i++;
   }
   const todayN = counts[today] || 0;
-  return `<div class="heatmap-head"><div class="heatmap-title">直近約3か月の学習量</div><div class="heatmap-sub">今日 ${todayN}問</div></div>
-    <div class="heatmap-scroll"><div class="heatmap-grid">${cells}</div></div>
-    <div class="heatmap-legend"><span>少</span><span class="heat-cell"></span><span class="heat-cell lv1"></span><span class="heat-cell lv2"></span><span class="heat-cell lv3"></span><span class="heat-cell lv4"></span><span>多</span></div>`;
+  return `<div class="heatmap-head"><div class="heatmap-title">直近3か月の学習量</div><div class="heatmap-sub">今日 ${todayN}問</div></div>
+    <div class="heatmap-scroll">
+      <div class="heatmap-grid">${cells}</div>
+      <div class="heatmap-months">${months}</div>
+    </div>`;
 }
 function ringSVG(pct, size, stroke) {
   const r = (size-stroke)/2, c = 2*Math.PI*r, off = c*(1-pct), cx = size/2;

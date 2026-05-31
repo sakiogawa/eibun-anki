@@ -72,5 +72,6 @@ function applyResult(s, correct) {
 function counts() {
   const a = state.sentences;
   return { total: a.length, mastered: a.filter(s => s.status==='mastered').length,
-    learning: a.filter(s => s.status==='learning').length, box: a.filter(s => s.inWrongBox).length };
+    learning: a.filter(s => s.status==='learning').length, new: a.filter(s => s.status==='new').length,
+    box: a.filter(s => s.inWrongBox).length };
 }

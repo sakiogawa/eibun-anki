@@ -136,6 +136,25 @@
     color: var(--grn-d); border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 800; }
   .gl-tag .mat-icon { font-size: 15px; }
 
+  /* learning status dashboard */
+  .progress-card { padding: 18px; }
+  .status-bar { display: flex; width: 100%; height: 14px; overflow: hidden; border-radius: 999px; background: var(--bg); }
+  .status-seg { min-width: 0; height: 100%; }
+  .status-seg.mastered { background: var(--grn); }
+  .status-seg.learning { background: var(--amber); }
+  .status-seg.new { background: var(--faint); }
+  .status-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 14px; }
+  .status-stat { border-radius: 14px; padding: 12px 8px; text-align: center; background: var(--bg); }
+  .status-stat.mastered { background: var(--grn-bg); }
+  .status-stat.learning { background: var(--amber-bg); }
+  .status-stat.new { background: var(--bg); }
+  .status-num { font-family: "Nunito"; font-size: 25px; line-height: 1; font-weight: 800; }
+  .status-stat.mastered .status-num { color: var(--grn-d); }
+  .status-stat.learning .status-num { color: #b6831b; }
+  .status-stat.new .status-num { color: var(--mute); }
+  .status-label { margin-top: 5px; font-size: 11px; font-weight: 900; color: var(--ink); }
+  .status-pct { margin-top: 2px; font-family: "Nunito"; font-size: 11px; font-weight: 800; color: var(--mute); }
+
   /* mode rows */
   .mode-row { display: flex; align-items: center; gap: 13px; padding: 13px; border-radius: 16px;
     cursor: pointer; transition: background .12s; }
@@ -285,15 +304,16 @@
   .heatmap-title { font-size: 15px; font-weight: 900; }
   .heatmap-sub { font-family: "Nunito"; font-size: 12px; font-weight: 800; color: var(--mute); }
   .heatmap-scroll { overflow-x: auto; padding-bottom: 2px; }
-  .heatmap-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); grid-auto-columns: 13px; gap: 4px; width: max-content; }
-  .heat-cell { width: 13px; height: 13px; border-radius: 4px; background: var(--line); }
+  .heatmap-grid,
+  .heatmap-months { --heat-cell: 18px; --heat-gap: 5px; display: grid; grid-auto-columns: var(--heat-cell); column-gap: var(--heat-gap); width: max-content; }
+  .heatmap-grid { grid-auto-flow: column; grid-template-rows: repeat(7, var(--heat-cell)); row-gap: var(--heat-gap); }
+  .heatmap-months { grid-template-rows: 18px; margin-top: 10px; }
+  .heat-month { color: var(--mute); font-size: 12px; font-weight: 800; white-space: nowrap; }
+  .heat-cell { width: 18px; height: 18px; border-radius: 6px; background: var(--line); }
   .heat-cell.lv1 { background: #d8f0df; }
   .heat-cell.lv2 { background: #a8ddb5; }
   .heat-cell.lv3 { background: #64c785; }
   .heat-cell.lv4 { background: #2e9d63; }
-  .heat-legend { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin-top: 10px; color: var(--mute); font-size: 11px; font-weight: 800; }
-  .heat-legend .heat-cell { width: 11px; height: 11px; border-radius: 3px; }
-
   /* ---------- Bottom nav ---------- */
   #bottomnav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; max-width: 440px; margin: 0 auto;
     background: var(--card); box-shadow: 0 -3px 16px rgba(70,60,45,.07); display: flex; padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); }
